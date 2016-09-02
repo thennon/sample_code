@@ -1,8 +1,10 @@
+%% power_spec_demo.m
+% Use pseudo data to demonstrate technique used to create a power spectrum
+% with error bars
+
 clear all; close all;
 
 %% Create some pseudo-data for demo purposes 
-
-
 
 dt = 1/24; %sampling frequency 1/hr
 t = dt:dt:30;
@@ -13,16 +15,21 @@ y2 = 2*cos(t*2*pi*1.0); % small Diurnal (1/day) signal
 y3 = 10*cos(t*2*pi*0.2); % large Low-frequency (0.2/day) signal
 
 Y = y1+y2+y3+randn(size(t))*3; %superimpose signals and and some moderate noise
+% We will assume that Y has units of meters.
 
-figure(1);clf
+hf = figure(1);clf
+set(hf,'position',[50 50 1300 750])
+
+subplot(121)
 plot(t,Y,'k','linewidth',3)
 grid on
 xlabel('Time [days]','fontweight','bold')
 ylabel('Signal [m]','fontweight','bold')
-set(gca,'fontsize',14)
-title('Sample time-series','fontsize',20)
+set(gca,'fontsize',20)
+title('Sample time-series','fontsize',24)
 
-%% Start calculating the power-spectrum
+
+%% Calculate the power spectrum
 
 %remove trendline for powerspectrum
 coef = polyfit(t,Y,1); % 1 = linear fit
@@ -32,108 +39,75 @@ Y_detrend = Y-Y_fit;
 
 L = length(t);
 k = (2*pi/L)*[0:L/2-1 -L/2:-1]; ks = fftshift(k); %set up frequency grid
-    f1 = ks*24/(2*pi);
+f = ks*24/(2*pi); % Convert to cycles/day
 
-    
-    
-   Sgt = (1/24)*fft(Y_detrend);       
-          powspec = fftshift(Sgt.*conj(Sgt))/(1/24*L);
+S = (1/24)*fft(Y_detrend);       
+SPEC = fftshift(S.*conj(S))/(1/24*L);
 
-    idpos = find(f1>0);
-    f_pos = f1(idpos);
-    S_pos = powspec(idpos)*2; %Since the powerspectrum is symmetric for a real Y, we simplify by looking at just the posti
+id_pos = find(f>0);
+f_pos = f(id_pos);
+S_pos = SPEC(id_pos)*2; %Since the powers pectrum is symmetric if all 'Y' is real, 
+                           %we simplify by looking at just the postive frequency values
  
-figure(2); clf
-loglog(f_pos,S_pos,'k','linewidth',2)    
+%% Check parseval's theorem... variance in TS should be equal to variance in spectrum
+
+var_ts = var(Y);
+var_spec = sum(SPEC)*(f(2)-f(1)); 
     
+%% Let's average over some higher frequency to increase sample size and decrease error...
 
 
-ind = find(f_pos > 2.0); ind2 = find(f_pos <=2);
+ind = find(f_pos > 2.0); ind2 = find(f_pos <=2); %split data into >2 and <2 cycles/day
 f0 = f_pos(ind); y0 = S_pos(ind);
 
 clear f2 y2
 for i = 1:length(f0)/3
-    f2(i) = 1/3*(f0(i*3-2) + f0(i*3-1) + f0(i*3));
-    y2(i) = 1/3*(y0(i*3-2) + y0(i*3-1) + y0(i*3));
+    f2(i) = 1/3*(f0(i*3-2) + f0(i*3-1) + f0(i*3)); %take average frequency
+    y2(i) = 1/3*(y0(i*3-2) + y0(i*3-1) + y0(i*3)); %take average spectum amplitude
 end
 
+% cat the averaged data (>2cpd) with the original data <2cpd.
 ff = [f_pos(ind2) f2]; Syyf = [S_pos(ind2) y2];
 
-hold on
-loglog(ff,Syyf,'r')
+%% Plot the data
+subplot(122)
 
-a = 1;
+    loglog(ff,Syyf,'k','linewidth',2); hold on %plot power spectrum in log-scale
 
-            dfnew = 3*2*a;
+    % Now plot 95% CI ranges, one for the data <2cpd with one df, and one for
+    % the averaged data (>2cpd) with 3df. a = 1; 
 
-            lo1 = chi2inv(0.975,2*a); hi1 = chi2inv(0.025,2*a);
-            hi1 = 2*a/hi1; lo1 = 2*a/lo1;
-            
-            lo2 = chi2inv(0.975,3*2*a); hi2 = chi2inv(0.025,3*2*a);
-            hi2 = dfnew/hi2; lo2 = dfnew/lo2;
+    a = 1; %sample size = 1, for one 30-day segment. Using multiple 30-day segments would increase this number.
+    df_0 = 2*a; 
+    lo_CI_0 = chi2inv(0.975,2*a); hi_CI = chi2inv(0.025,2*a); %
+    hi_CI = 2*a/hi_CI; lo_CI_0 = 2*a/lo_CI_0;
+
+    df_2 = 3*2*a; %degrees of freedom when averaging over frequency bins. 
+    lo_CI_2 = chi2inv(0.975,3*2*a); hi_CI_2 = chi2inv(0.025,3*2*a);
+    hi_CI_2 = df_2/hi_CI_2; lo_CI_2 = df_2/lo_CI_2;
  
             hold on
-      line1 = .35*ones(size(f_pos));
-        line2 = zeros(size(f_pos));
-        line2(ind2) = line1(1)*hi1/lo1;
-        line2(ind) = line1(1)*hi2/lo2;
-        
-        loglog(f_pos,line1,'k',f_pos,line2,'k','linewidth',2)
-        pos1 = (line1(1)/lo1);
-        loglog(.11,pos1,'k.','markersize',20)
-        loglog([.11 .11],[line1(1) line2(1)],'k','linewidth',2)
-        text(.12,pos1*.95,'95% CI','fontsize',12,'fontweight','bold')
-
-
- 
- 
- %% Average over 3 frequency bins for high frequencies
-            ind = find(fpos > 4.1); ind2 = find(fpos<=4.1); % Frequencies in [cpd]
-            f0 = fpos(ind); y0 = Syy(ind);
-
-            for i = 1:length(f0)/3
-                  f2(i) = 1/3*(f0(i*3-2) + f0(i*3-1) + f0(i*3));
-                  y2(i) = 1/3*(y0(i*3-2) + y0(i*3-1) + y0(i*3));
-            end
-
-            ff = [fpos(ind2) f2]; Syyf = [Syy(ind2) y2];
-        
-        loglog(ff,Syyf,'k','linewidth',2)
-        %loglog(ff,Syyf,'r*','markersize',5)
-    
-
-        
-        [a,b] = size(Syy_ind);
-        cd /Users/thennon/Argo/Testing
-            dfnew = 3*2*a;
-
-            lo1 = chi2inv(0.975,2*a); hi1 = chi2inv(0.025,2*a);
-            hi1 = 2*a/hi1; lo1 = 2*a/lo1;
             
-            lo2 = chi2inv(0.975,3*2*a); hi2 = chi2inv(0.025,3*2*a);
-            hi2 = dfnew/hi2; lo2 = dfnew/lo2;
-        cd /Users/thennon/Argo/Testing/NewSpec
+    % Draw 95% CI range
+    setpoint = 1e-4;
+    line_bottom = setpoint*ones(size(f_pos));
+    line_top = zeros(size(f_pos));
+    line_top(ind2) = line_bottom(1)*hi_CI/lo_CI_0; % for <2cpd
+    line_top(ind) = line_bottom(1)*hi_CI_2/lo_CI_2; % for >2cpd
         
-        line1 = .35*ones(size(fpos));
-        line2 = zeros(size(fpos));
-        line2(ind2) = line1(1)*hi1/lo1;
-        line2(ind) = line1(1)*hi2/lo2;
-        
-        loglog(fpos,line1,'k',fpos,line2,'k','linewidth',2)
-        pos1 = (line1(1)/lo1);
-        loglog(.11,pos1,'k.','markersize',20)
-        loglog([.11 .11],[line1(1) line2(1)],'k','linewidth',2)
-        text(.12,pos1*.95,'95% CI','fontsize',12,'fontweight','bold')
-        %text(1,line1(1)*.8,['df = ',num2str(2*a)],'fontsize',12,'fontweight','bold')
-        %text(8,line1(1)*.8,['df = ',num2str(dfnew)],'fontsize',9,'fontweight','bold')
-        
-        text(9,10^1.7,['Lat: ',num2str(avlatR),' +/- ' ,num2str(slatR)],'fontsize',12,'fontweight','bold')    
-        text(9,10^1.5,['Lon: ',num2str(avlonR),' +/- ', num2str(slonR)],'fontsize',12,'fontweight','bold')
-        text(9,10^1.3,['Record: ',num2str(record),' Days'],'fontsize',12,'fontweight','bold')
-        text(9,10^1.1,['Segments: ',num2str(del/24),' Days'],'fontsize',12,'fontweight','bold')
-        
-        legend('S_{av}','GM','location','southeast')
+    loglog(f_pos,line_bottom,'k',f_pos,line_top,'k','linewidth',2)
+    pos1 = (line_bottom(1)/lo_CI_0);
+    loglog(.11,pos1,'ko','markersize',10,'markerfacecolor',[0 0 0])
+    loglog([.11 .11],[line_bottom(1) line_top(1)],'k','linewidth',2)
+    text(.12,pos1*.95,'95% CI','fontsize',12,'fontweight','bold')
 
+    set(gca,'xlim',[10^(-1.8) 10^(1.5)],'ylim',[1e-5 1e5],'fontsize',14)
+    grid on
+    xlabel('Frequency [cpd]','fontsize',20,'fontweight','bold')
+    ylabel('Amplitude [m^2 cpd^{-1}]','fontsize',20,'fontweight','bold')
+    title('Demo Power Spectrum','fontsize',24)
+    
+ 
 
 
 
