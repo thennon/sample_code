@@ -52,7 +52,9 @@ S_pos = SPEC(id_pos)*2; %Since the powers pectrum is symmetric if all 'Y' is rea
 %% Check parseval's theorem... variance in TS should be equal to variance in spectrum
 
 var_ts = var(Y);
-var_spec = sum(SPEC)*(f(2)-f(1)); 
+var_spec = sum(SPEC)*(f(2)-f(1));
+
+var_diffs = var_ts-var_spec; %this should be a  pretty small number 
     
 %% Let's average over some higher frequency to increase sample size and decrease error...
 
