@@ -3,7 +3,7 @@ sample_code README:
 These scripts are a few brief demonstrations of the types of projects I have done, both at UW and personally.
 
 aviso_ftp.sh:
-This downloads a user selected year of satellite data from the aviso ftp site.
+This lets the user download a chosen year of satellite data from the aviso ftp site. Only downloads data every 8 days. 
 
 power_spec_demo.m (MATLAB)
 Generates pseudo data with a few primary frequencies (plus noise) and calculates the power spectrum of the time series. Plots show the strongst frequencies and 95% confidence interval.
